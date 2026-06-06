@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/koderpark/vocadb-metadata-macro/service"
+	"github.com/koderpark/vocadb-metadata-macro/service/vocadb"
 )
 
 func main() {
@@ -16,13 +17,13 @@ func main() {
 	flag.Parse()
 
 	if *url != "" {
-		id, err := service.ParseAlbumID(*url)
+		id, err := vocadb.ParseAlbumID(*url)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
 
-		album, err := service.FetchAlbum(id)
+		album, err := vocadb.FetchAlbum(id)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
