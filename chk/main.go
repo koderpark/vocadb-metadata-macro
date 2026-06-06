@@ -11,9 +11,8 @@ import (
 )
 
 func main() {
-	dir := flag.String("dir", "", "files to list in this directory")
+	dir := flag.String("dir", "", "directory of audio files to read tags from")
 	url := flag.String("url", "", "VocaDB album URL to fetch metadata for")
-	jsonOut := flag.Bool("json", false, "with -url, print the full album metadata as JSON")
 	flag.Parse()
 
 	if *url != "" {
@@ -29,31 +28,12 @@ func main() {
 			os.Exit(1)
 		}
 
-		if *jsonOut {
-			out, err := json.MarshalIndent(album, "", "  ")
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "error:", err)
-				os.Exit(1)
-			}
-			fmt.Println(string(out))
-			return
-		}
-
-		fmt.Printf("ID:           %d\n", album.ID)
-		fmt.Printf("Name:         %s\n", album.Name)
-		fmt.Printf("Artist:       %s\n", album.ArtistString)
-		fmt.Printf("Disc Type:    %s\n", album.DiscType)
-		fmt.Printf("Status:       %s\n", album.Status)
-		if !album.ReleaseDate.IsEmpty {
-			fmt.Printf("Release Date: %04d-%02d-%02d\n",
-				album.ReleaseDate.Year, album.ReleaseDate.Month, album.ReleaseDate.Day)
-		}
-		fmt.Printf("Rating:       %.2f (%d)\n", album.RatingAverage, album.RatingCount)
+		printJSON(album)
 		return
 	}
 
 	if *dir == "" {
-		fmt.Fprintln(os.Stderr, "usage: chk -url <vocadb-album-url> [-json] | -dir <directory>")
+		fmt.Fprintln(os.Stderr, "usage: chk -url <vocadb-album-url> | -dir <directory>")
 		os.Exit(1)
 	}
 
@@ -63,7 +43,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	for _, f := range files {
-		fmt.Println(f)
+	type fileMetadata struct {
+		Path     string           `json:"path"`
+		Metadata service.Metadata `json:"metadata"`
 	}
+
+	result := make([]fileMetadata, 0, len(files))
+	for _, f := range files {
+		meta, err := service.ReadMetadata(f)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+		result = append(result, fileMetadata{Path: f, Metadata: meta})
+	}
+
+	printJSON(result)
+}
+
+// printJSON은 값을 들여쓰기된 JSON으로 표준출력에 기록한다.
+func printJSON(v any) {
+	out, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+	fmt.Println(string(out))
 }
