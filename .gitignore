@@ -1,0 +1,19 @@
+# Binaries
+/vocadb-metadata-macro
+*.exe
+*.out
+
+# Go test/coverage artifacts
+*.test
+coverage.out
+
+# Dependency directory (if vendored)
+/vendor/
+
+# Environment
+.env
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
