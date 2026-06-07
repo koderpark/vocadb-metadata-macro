@@ -45,15 +45,10 @@ func request(path string) (json.RawMessage, error) {
 // albumFields requests the complete album payload from the VocaDB API.
 const albumFields = "Artists,Tracks,Discs,MainPicture"
 
-// lang is the preferred language for VocaDB name fields. Setting it to
-// Japanese makes the API return Japanese names directly in the `name`
-// fields, so the per-language name fields don't need to be inspected.
-const lang = "Japanese"
-
 // FetchAlbum retrieves the full album metadata from the VocaDB API for the given album ID.
 // It returns an error on network failure, a non-200 status, or invalid JSON.
 func FetchAlbum(id int) (*Album, error) {
-	raw, err := request(fmt.Sprintf("/albums/%d?fields=%s&lang=%s", id, albumFields, lang))
+	raw, err := request(fmt.Sprintf("/albums/%d?fields=%s", id, albumFields))
 	if err != nil {
 		return nil, fmt.Errorf("fetching album %d: %w", id, err)
 	}
