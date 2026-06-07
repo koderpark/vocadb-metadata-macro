@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/koderpark/vocadb-metadata-macro/service/vocadb"
 )
@@ -20,6 +21,7 @@ func AlbumToMetadata(album *vocadb.Album) []Metadata {
 	}
 
 	date := formatReleaseDate(album.ReleaseDate)
+	albumArtist := albumArtistTag(album)
 	compilation := ""
 	if album.DiscType == discTypeCompilation {
 		compilation = "1"
@@ -31,7 +33,7 @@ func AlbumToMetadata(album *vocadb.Album) []Metadata {
 			Title:       t.Name,
 			Artist:      t.Song.ArtistString,
 			Album:       album.Name,
-			AlbumArtist: album.ArtistString,
+			AlbumArtist: albumArtist,
 			Date:        date,
 			Genre:       "", // VocaDB 앨범 API는 장르를 제공하지 않는다.
 			TrackNumber: numTag(t.TrackNumber),
@@ -41,6 +43,49 @@ func AlbumToMetadata(album *vocadb.Album) []Metadata {
 	}
 
 	return out
+}
+
+// FilterByDisc는 주어진 disc 번호의 트랙 메타데이터만 추려서 반환한다.
+// (입력 슬라이스의 순서를 그대로 보존) 한 disc만 모아둔 폴더에 태그를 쓸 때 쓴다.
+func FilterByDisc(metas []Metadata, disc int) []Metadata {
+	want := numTag(disc)
+	out := make([]Metadata, 0, len(metas))
+	for _, m := range metas {
+		if m.DiscNumber == want {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// variousArtists는 프로듀서가 여럿일 때 ALBUMARTIST로 쓰는 폴백 값이다.
+const variousArtists = "Various Artists"
+
+// albumArtistTag는 ALBUMARTIST 태그 값을 정한다.
+// VocaDB가 내려주는 artistString(예: "Ruliea feat. various")은 보컬까지 묶여 있으므로 쓰지 않고,
+// 앨범의 Producer 카테고리 아티스트만 본다. 프로듀서가 정확히 1명이면 그 이름을, 여러 명이면
+// 컴필레이션처럼 "Various Artists"로 폴백한다. 프로듀서가 없으면 artistString을 그대로 쓴다.
+func albumArtistTag(album *vocadb.Album) string {
+	var producers []string
+	for _, a := range album.Artists {
+		if a.IsSupport || !strings.Contains(a.Categories, "Producer") {
+			continue
+		}
+		name := a.Name
+		if name == "" {
+			name = a.Artist.Name
+		}
+		producers = append(producers, name)
+	}
+
+	switch len(producers) {
+	case 1:
+		return producers[0]
+	case 0:
+		return album.ArtistString
+	default:
+		return variousArtists
+	}
 }
 
 // formatReleaseDate는 VocaDB ReleaseDate를 ISO 8601 부분 날짜 문자열로 변환한다.

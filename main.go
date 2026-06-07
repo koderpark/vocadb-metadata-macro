@@ -12,10 +12,11 @@ import (
 func main() {
 	url := flag.String("url", "", "VocaDB album URL to source metadata from")
 	dir := flag.String("dir", "", "directory of audio files to write tags to")
+	disc := flag.Int("disc", 0, "if >0, only tag tracks on this disc number (for a folder holding one disc)")
 	flag.Parse()
 
 	if *url == "" || *dir == "" {
-		fmt.Fprintln(os.Stderr, "usage: vocadb-metadata-macro -url <vocadb-album-url> -dir <directory>")
+		fmt.Fprintln(os.Stderr, "usage: vocadb-metadata-macro -url <vocadb-album-url> -dir <directory> [-disc <n>]")
 		os.Exit(1)
 	}
 
@@ -32,6 +33,14 @@ func main() {
 	// 앨범을 트랙별 태그 메타데이터로 변환한다. (앨범의 트랙 순서 보존)
 	metas := service.AlbumToMetadata(album)
 
+	// -disc가 지정되면 해당 disc 번호의 트랙만 남긴다. (한 disc만 모아둔 폴더용)
+	if *disc > 0 {
+		metas = service.FilterByDisc(metas, *disc)
+		if len(metas) == 0 {
+			fatal(fmt.Errorf("album %q has no tracks on disc %d", album.Name, *disc))
+		}
+	}
+
 	// 태그를 기록할 대상 음원 파일 목록. (파일명 정렬 순)
 	files, err := service.ListFiles(*dir)
 	if err != nil {
@@ -42,6 +51,12 @@ func main() {
 	if len(files) != len(metas) {
 		fatal(fmt.Errorf("track count mismatch: album %q has %d tracks but %s has %d audio files",
 			album.Name, len(metas), *dir, len(files)))
+	}
+
+	// 파일명을 01.ext, 02.ext ... 순번으로 정규화한다. (일본어 등 원본명 제거)
+	files, err = service.RenameSequential(files)
+	if err != nil {
+		fatal(err)
 	}
 
 	// 순서대로 짝지어 각 파일에 태그를 기록한다.
